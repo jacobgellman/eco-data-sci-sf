@@ -352,7 +352,6 @@ campgrounds_win_matrix <-
 # a key-value dataframe
 campgrounds_win_df <-
   data.frame(campgrounds_within)
-
 ```
 
 ## Conclusion
