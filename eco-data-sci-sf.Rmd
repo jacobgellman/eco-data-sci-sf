@@ -33,7 +33,7 @@ library(readr)
 
 ## Introduction
 
-This walkthrough covers some of the same concepts from Jamie Montgomery's [guide](https://github.com/jamiecmontgomery/spatial-analysis-R) on spatial data in R, which is how I first learned to use the `sf` package. This walkthrough will cover some of the same concepts and also some different ones.
+This walkthrough covers some of the same concepts from Jamie Montgomery's [guide](https://github.com/jamiecmontgomery/spatial-analysis-R) on spatial data in R, which is how I first learned to use the `sf` package. It will cover some of the same concepts and also some different ones.
 
 As her guide does, I will start with background from the [sf](https://cran.r-project.org/web/packages/sf/vignettes/sf1.html) vignette: 
 
@@ -64,7 +64,7 @@ An `sf` object is similar to a dataframe except that it has an additional column
 class(fire_perims)
 ```
 
-Visualizing the data spatially using `mapview`:
+Visualizing the data spatially using `mapview`.
 
 ```{r mapview fire perims}
 mapview(fire_perims,col.regions = "orange")
@@ -79,7 +79,7 @@ fire_df <-
 head(fire_df)
 ```
 
-I could potentially take the above dataframe elsewhere, write it to a csv, etc.
+I could potentially take the above dataframe elsewhere, write it to a csv, and use it for something else.
 
 Suppose we would like to know what kinds of fires there are in the data field `Fire_Type`. 
 
@@ -88,7 +88,7 @@ fire_df %>%
   distinct(Fire_Type)
 ```
 
-Perhaps we are unconcerned with "RX" fires, which are prescribed burns. We can remove them from our `sf` object using `dplyr::filter`:
+Perhaps we are unconcerned with "RX" fires, which are prescribed burns. We can remove them from our `sf` object using `dplyr::filter`.
 
 ```{r filter prescribed burns}
 fire_perims <-
@@ -104,13 +104,13 @@ Another important feature of any spatial file is the coordinate reference system
 
 >Every sf object needs a coordinate reference system (or crs) defined in order to work with it correctly. A coordinate reference system contains both a datum and a projection. The datum is how you georeference your points (in 3 dimensions!) onto a spheroid. The projection is how these points are mathematically transformed to represent the georeferenced point on a flat piece of paper. All coordinate reference systems require a datum. However, some coordinate reference systems are “unprojected” (also called geographic coordinate systems). Coordinates in latitude/longitude use a geographic (unprojected) coordinate system.
 
-We can retrieve the coordinate reference system of our `sf` object using `sf::st_crs`:
+We can retrieve the coordinate reference system of our `sf` object using `sf::st_crs`.
 
 ```{r crs}
 st_crs(fire_perims)
 ```
 
-By the output we see that the coordinates are unprojected and are instead in lat-long format. We can confirm this with a simple function:
+By the output we see that the coordinates are unprojected and are instead in lat-long format. We can confirm this with a simple function.
 
 ```{r is lat long}
 st_is_longlat(fire_perims)
@@ -178,7 +178,7 @@ campgrounds <-
 head(campgrounds)
 ```
 
-I suggest exploring that data a bit. The brochure descriptions are fun. Of course, the data is not yet in a spatial form:
+I suggest exploring that data a bit. The brochure descriptions are fun. Of course, the data is not yet in a spatial form.
 
 ```{r campground type}
 class(campgrounds)
@@ -308,9 +308,55 @@ So for campground $i$ and fire $j$, the $(i,j)$th position gives the distance of
 
 ## Testing if objects contain one another
 
-Wildfires also generate smoke. One source of spatial wildfire smoke data is the National Oceanic and Atmospheric Administration (NOAA) Hazard Mapping System (HMS) smoke product. Drawn from satellite images, this data gives daily shapefiles for wildfire smoke extent.
+Wildfires also generate smoke. One source of spatial wildfire smoke data is the National Oceanic and Atmospheric Administration (NOAA) Hazard Mapping System (HMS) smoke product. Drawn from satellite images, this product gives daily shapefiles for wildfire smoke extent. We will read in the shapefile for August 19, 2015 and restrict our fires to those that began in the summer of 2015.^[I have previously modified the NOAA HMS shapefile for August 19, 2015 to restrict attention to California plumes.]
 
 ```{r import smoke data}
+# read smoke data
 smoke <- 
-  read_sf()
+  read_sf("data/smoke/hms_smoke20150819.shp",
+          crs=4269)  # we can specify the CRS (NAD83) as we read it in
+
+# california wildfires from summer 2015
+fire_2015 <-
+  fire_perims %>%
+  filter(Year==2015 & StartMonth %in% 6:8)
+
+# mapping
+mapview(ca_nps) +
+  mapview(smoke,col.regions="lightgrey") +
+  mapview(fire_2015,col.regions="orange")
 ```
+
+On this day many campgrounds were beneath wildfire plumes. We can derive an exact answer using `sf::st_within`. For the 61 campgrounds and 15 smoke plumes, we will have an object of dimension 61 by 15. 
+
+First we need to project our smoke data.
+
+```{r st within}
+# projected smoke
+smoke_proj <-
+  smoke %>%
+  st_transform(crs=3310)  # california albers
+
+# testing campgrounds within smoke
+campgrounds_within <-
+  st_within(ca_nps_proj,smoke_proj)
+```
+
+We again have a listed object where the row $i$ corresponds to a campground and the list gives the index numbers $j$ of the smoke plumes covering a given $i$. Like before, we can either convert the listed object to a matrix or a key-value dataframe.
+
+```{r smoke matrix}
+# a matrix
+campgrounds_win_matrix <-
+  as.matrix(campgrounds_within)
+
+# a key-value dataframe
+campgrounds_win_df <-
+  data.frame(campgrounds_within)
+
+```
+
+## Conclusion
+
+There is much more to do with the `sf` package. A large part of the syntax is drawn from `gdal` functions, so it is generally easy to teach oneself to do new things because so much documentation exists. 
+
+One thing I did not cover was how to make maps (except in our interactive `mapview` outputs). For that I would again defer to Jamie Montgomery's [guide](https://github.com/jamiecmontgomery/spatial-analysis-R) on `sf`.
