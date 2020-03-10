@@ -29,6 +29,8 @@ library(leaflet)
 library(measurements)
 #install.packages("readr")
 library(readr)
+#install.packages("ggplot2")
+library(ggplot2)
 ```
 
 ## Introduction
@@ -79,7 +81,12 @@ fire_df <-
 head(fire_df)
 ```
 
-I could potentially take the above dataframe elsewhere, write it to a csv, and use it for something else.
+I could potentially take the above dataframe elsewhere, write it to a csv, and use it for something else. Another quick way to drop the geometry:
+
+```{r drop geometry}
+fire_df <-
+  st_drop_geometry(fire_perims)
+```
 
 Suppose we would like to know what kinds of fires there are in the data field `Fire_Type`. 
 
@@ -354,8 +361,41 @@ campgrounds_win_df <-
   data.frame(campgrounds_within)
 ```
 
+## Making a static map
+
+We have used `mapview` throughout this guide, but it is also straightforward to make static maps using language from `ggplot`.
+
+```{r ggplot}
+# import california shapefile
+ca <- 
+  read_sf("data/state/california2016.shp")
+
+# project
+ca_proj <-
+  ca %>%
+  st_transform(crs=3310)
+
+p <-
+  ggplot() +
+  geom_sf(data=ca_proj) +
+  geom_sf(data=ca_nps_proj,color="darkgreen") +
+  geom_sf(data=fire_proj,color="orange",fill="orange",alpha=0.5) +
+  theme_bw()
+p
+```
+
+To modify the map aesthetics (for example, get rid of the axis text) one can use familiar arguments in the `theme` command, such as the following:
+
+```{r modify map}
+p +
+  theme(axis.text=element_blank(),
+        axis.ticks=element_blank())
+```
+
+... and much more.
+
 ## Conclusion
 
 There is much more to do with the `sf` package. A large part of the syntax is drawn from `gdal` functions, so it is generally easy to teach oneself to do new things because so much documentation exists. 
 
-One thing I did not cover was how to make maps (except in our interactive `mapview` outputs). For that I would again defer to Jamie Montgomery's [guide](https://github.com/jamiecmontgomery/spatial-analysis-R) on `sf`.
+One thing I did not cover in depth was how to make maps. There are many useful data visualization techniques such as filling polygons based on data values. For that I would again defer to Jamie Montgomery's [guide](https://github.com/jamiecmontgomery/spatial-analysis-R) on `sf`.
